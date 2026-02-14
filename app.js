@@ -15,12 +15,20 @@ const io = socketIo(server, {
             "http://localhost:5173",
             "https://ai-resume-analyzer-frontend-tt59.onrender.com"
         ],
-        methods: ["GET", "POST"]
+        methods: ["GET", "POST", "PUT", "DELETE"]
     }
 });
 
 // Middleware
-app.use(cors());
+// app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://ai-resume-analyzer-frontend-tt59.onrender.com"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
