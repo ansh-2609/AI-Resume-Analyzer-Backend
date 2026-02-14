@@ -22,12 +22,9 @@ const DevOpsQuestions = require('../models/interviewQuestions/devOpsQuestions');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const groq_chatbot = new Groq({ apiKey: process.env.GROQ_API_KEY_CHATBOT });
 
-// function extractJSON(text) {
-//   return text
-//     .replace(/```json/g, '')
-//     .replace(/```/g, '')
-//     .trim();
-// }
+const pLimit = require("p-limit");
+const limit = pLimit(5);
+
 
 function extractJSON(text) {
   try {
@@ -494,10 +491,10 @@ exports.matchRealJobs = async (req, res) => {
       new Map(jobs.map(j => [`${j.title}-${j.company}`, j])).values()
     ).slice(0, 30);
 
-    const matchedJobs = [];
-
-    for (const job of uniqueJobs) {
-const prompt = `
+  const matchedJobs = await Promise.all(
+    uniqueJobs.map((job) =>
+      limit(async () => {
+        const prompt = `
 You are an Applicant Tracking System (ATS) that evaluates how well a resume matches a job description.
 
 TASK:
@@ -535,22 +532,34 @@ JOB DESCRIPTION:
 ${job.description.substring(0, 4000)}
 `;
 
+        try {
+          const completion = await groq.chat.completions.create({
+            model: "llama-3.1-8b-instant",
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.2,
+          });
 
-      const completion = await groq.chat.completions.create({
-        model: "llama-3.1-8b-instant",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.2
-      });
+          const result = extractJSON(completion.choices[0].message.content);
 
-      const result = extractJSON(completion.choices[0].message.content);
+          return {
+            ...job,
+            score: result?.score ?? 0,
+            missing: result?.missing ?? [],
+            strengths: result?.strengths ?? [],
+          };
+        } catch (err) {
+          console.error("Groq error:", err.message);
 
-      matchedJobs.push({
-          ...job,
-          score: result.score,
-          missing: result.missing,
-          strengths: result.strengths
-        });
-      }
+          return {
+            ...job,
+            score: 0,
+            missing: [],
+            strengths: [],
+          };
+        }
+      }),
+    ),
+  );
 
     await MatchedJobs.save(userId, resumeId, matchedJobs);
     res.json(matchedJobs.sort((a, b) => b.score - a.score));
@@ -897,3 +906,60 @@ Interview Question: ${activeQuestion.question || "N/A"}
   }
 }
 
+// const matchedJobs = [];
+
+//     for (const job of uniqueJobs) {
+// const prompt = `
+// You are an Applicant Tracking System (ATS) that evaluates how well a resume matches a job description.
+
+// TASK:
+// Compare the resume and the job description and calculate a match score.
+
+// SCORING RULES:
+// - Score must be an integer from 0 to 10
+// - Base the score on:
+//   - Skill overlap (most important)
+//   - Relevant experience
+//   - Keywords and tools
+// - Do NOT consider formatting or grammar
+// - Do NOT invent information not present in the resume
+
+// OUTPUT FORMAT:
+// Return ONLY valid JSON.
+// Do not include explanations, markdown, or extra text.
+
+// JSON SCHEMA:
+// {
+//   "score": number,
+//   "missing": string[],
+//   "strengths": string[]
+// }
+
+// GUIDELINES:
+// - "missing": list the most important missing skills or requirements (max 5)
+// - "strengths": list the strongest matching skills or experiences (max 5)
+// - Keep each item short (1 short sentence or phrase)
+
+// RESUME:
+// ${resume[0].raw_text.substring(0, 4000)}
+
+// JOB DESCRIPTION:
+// ${job.description.substring(0, 4000)}
+// `;
+
+
+//       const completion = await groq.chat.completions.create({
+//         model: "llama-3.1-8b-instant",
+//         messages: [{ role: "user", content: prompt }],
+//         temperature: 0.2
+//       });
+
+//       const result = extractJSON(completion.choices[0].message.content);
+
+//       matchedJobs.push({
+//           ...job,
+//           score: result.score,
+//           missing: result.missing,
+//           strengths: result.strengths
+//         });
+//     }

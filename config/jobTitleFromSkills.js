@@ -40,5 +40,5 @@ exports.inferJobTitleFromSkills = (skills = {}) => {
     return "data analyst";
   }
 
-  return "software developer"; // safe default
+  return "software developer"; 
 };
