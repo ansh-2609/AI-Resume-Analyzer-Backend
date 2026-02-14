@@ -11,7 +11,10 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: [
+            "http://localhost:5173",
+            "https://ai-resume-analyzer-frontend-tt59.onrender.com"
+        ],
         methods: ["GET", "POST"]
     }
 });
