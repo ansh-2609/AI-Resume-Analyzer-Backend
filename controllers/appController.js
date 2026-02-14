@@ -22,7 +22,7 @@ const DevOpsQuestions = require('../models/interviewQuestions/devOpsQuestions');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const groq_chatbot = new Groq({ apiKey: process.env.GROQ_API_KEY_CHATBOT });
 
-const pLimit = require("p-limit");
+const pLimit = require("p-limit").default;
 const limit = pLimit(5);
 
 
